@@ -7,100 +7,110 @@ from services.modis import fetch_modis
 from services.fire import fetch_fire_last_7
 from services.features import update_history
 from services.model import predict_fire
-
-LAT, LON = 34.05, -118.25  # Los Angeles test
-
-st.title("Wildfire 3-Day Forecast (Los Angeles)")
+import os
 
 # -------------------------
-# Fetch static environmental data
+# Cities to predict
 # -------------------------
-modis = fetch_modis(LAT, LON)
-fire_last_7 = fetch_fire_last_7(LAT, LON)
+CITIES = {
+    "Los Angeles": (34.05, -118.25),
+    "San Francisco": (37.77, -122.42)
+}
 
-# -------------------------
-# Fetch 3-day weather forecast
-# -------------------------
-forecast = fetch_weather_forecast(LAT, LON, days=3)  # list of dicts
+st.title("California Wildfire 3-Day Forecast")
 
-# Load existing history
-try:
-    df_hist = pd.read_csv("data_store/history.csv")
-except:
-    df_hist = pd.DataFrame()
+for city, (LAT, LON) in CITIES.items():
+    st.header(f"{city}")
 
-predictions = []
+    # -------------------------
+    # Static environmental data
+    # -------------------------
+    modis = fetch_modis(LAT, LON)
+    fire_last_7 = fetch_fire_last_7(LAT, LON)
 
-for day in forecast:
-    # Combine features
-    row = {
-        **day,
-        **modis,
-        "fire_last_7": fire_last_7
-    }
-    # Update rolling features based on history + forecast
-    df_temp = update_history(row)
-    latest = df_temp.iloc[-1]
+    # -------------------------
+    # 3-day weather forecast
+    # -------------------------
+    forecast = fetch_weather_forecast(LAT, LON, days=3)
+    predictions = []
 
-    # Predict wildfire probability
-    prob = predict_fire(latest.to_dict())
+    for day in forecast:
+        row = {**day, **modis, "fire_last_7": fire_last_7}
+        df_temp = update_history(row, city=city)
+        latest = df_temp.iloc[-1]
 
-    # Compute simple confidence
-    confidence = 1 - abs(0.5 - prob) * 2  # 1=high confidence (extreme), 0=low confidence (near 0.5)
+        # Predict wildfire probability
+        prob = predict_fire(latest.to_dict())
+        confidence = 1 - abs(0.5 - prob) * 2
 
-    predictions.append({
-        "DATE": latest["DATE"],
-        "PROB": prob,
-        "CONFIDENCE": confidence
-    })
+        predictions.append({
+            "DATE": latest["DATE"],
+            "PROB": prob,
+            "CONFIDENCE": confidence
+        })
 
-# -------------------------
-# Display Forecast Table
-# -------------------------
-st.subheader("Wildfire Probability Forecast (Next 3 Days)")
+    # -------------------------
+    # Display probability forecast
+    # -------------------------
+    st.subheader("Wildfire Probability Forecast (Next 3 Days)")
+    forecast_df = pd.DataFrame(predictions)
+    forecast_df["PROB_PERCENT"] = (forecast_df["PROB"] * 100).round(1)
+    forecast_df["CONF_PERCENT"] = (forecast_df["CONFIDENCE"] * 100).round(0)
 
-forecast_df = pd.DataFrame(predictions)
-forecast_df["PROB_PERCENT"] = (forecast_df["PROB"] * 100).round(1)
-forecast_df["CONF_PERCENT"] = (forecast_df["CONFIDENCE"] * 100).round(0)
+    for idx, row in forecast_df.iterrows():
+        prob = row["PROB"]
+        conf = row["CONFIDENCE"]
 
-for idx, row in forecast_df.iterrows():
-    prob = row["PROB"]
-    conf = row["CONFIDENCE"]
+        st.metric(
+            label=f"{row['DATE']}",
+            value=f"{row['PROB_PERCENT']}%",
+            delta=f"Confidence: {row['CONF_PERCENT']}%"
+        )
 
-    # Show probability metric
-    st.metric(
-        label=f"{row['DATE']}",
-        value=f"{row['PROB_PERCENT']}%",
-        delta=f"Confidence: {row['CONF_PERCENT']}%"
-    )
+        st.progress(min(prob, 1.0))
 
-    # Progress bar
-    st.progress(min(prob, 1.0))
+        if prob < 0.25:
+            st.success("Risk Level: Low")
+        elif prob < 0.5:
+            st.warning("Risk Level: Moderate")
+        else:
+            st.error("Risk Level: High")
 
-    # Risk band
-    if prob < 0.25:
-        st.success("Risk Level: Low")
-    elif prob < 0.5:
-        st.warning("Risk Level: Moderate")
+    # -------------------------
+    # Show latest environmental data
+    # -------------------------
+    st.subheader("Latest Environmental Features")
+    # Use the latest row after update_history (rolling features + filled LST_C)
+    st.json(latest.to_dict())
+
+    # -------------------------
+    # Show city-specific CSV history
+    # -------------------------
+    st.subheader(f"{city} Historical Data (Rolling Features)")
+    csv_file = f"data_store/history_{city.replace(' ', '_')}.csv"
+    if os.path.exists(csv_file):
+        df_hist = pd.read_csv(csv_file)
+        st.dataframe(df_hist)
     else:
-        st.error("Risk Level: High")
+        st.info("No history data available yet for this city.")
 
+# -------------------------
 # Disclaimer
+# -------------------------
 st.caption(
-    "Wildfire probability is model-based and estimated using weather forecasts, "
-    "historical MODIS satellite data, and recent fire history. "
-    "Predictions for future days are approximations and should not be used as a guarantee. "
-    "Confidence indicates how extreme the prediction is (higher confidence near very low or very high probabilities)."
+    """
+    Wildfire probability is estimated using:
+    - 3-day weather forecasts (temperature, precipitation, wind)
+    - MODIS satellite features (NDVI, EVI, LST)
+    - Fire activity in the past 7 days around the city
+
+    Probability indicates the model's estimate of wildfire occurrence (0–100%).  
+    Confidence shows extremity of prediction: higher near very low (<25%) or very high (>75%) probabilities.  
+    Risk bands:
+    - Low (<25%)  
+    - Moderate (25–50%)  
+    - High (>50%)  
+
+    These predictions are **approximations**, not guarantees.
+    """
 )
-
-# -------------------------
-# Optional: show latest environment data
-# -------------------------
-st.subheader("Latest Environmental Data (Most Recent Observations)")
-if not df_hist.empty:
-    latest_obs = df_hist.iloc[-1]
-    st.json(latest_obs.to_dict())
-
-st.subheader("Derived Features (Rolling / Computed Metrics)")
-if not df_hist.empty:
-    st.dataframe(df_hist)
