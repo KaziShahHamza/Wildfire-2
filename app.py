@@ -98,7 +98,7 @@ for idx, (city, (LAT, LON)) in enumerate(CITIES.items()):
         # Static environmental data
         # -------------------------
         modis = fetch_modis(LAT, LON)
-        fire_last_7 = fetch_fire_last_7(LAT, LON)
+        fire_last_7 = fetch_fire_last_7(LAT, LON, city_name=city)
 
         # -------------------------
         # 3-day weather forecast
@@ -137,13 +137,13 @@ for idx, (city, (LAT, LON)) in enumerate(CITIES.items()):
 
             # Color-coded risk card
             if prob < 0.25:
-                risk_color = "#42d342"  # Green
+                risk_color = "#16af16"  # Green
                 risk_text = "Low"
             elif prob < 0.5:
-                risk_color = "#bd9332"  # Yellow/Orange
+                risk_color = "#f7b017"  # Yellow/Orange
                 risk_text = "Moderate"
             else:
-                risk_color = "#d12525"  # Red
+                risk_color = "#f11818"  # Red
                 risk_text = "High"
 
             st.markdown(
