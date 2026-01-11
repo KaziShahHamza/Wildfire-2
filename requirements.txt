@@ -4,3 +4,8 @@ pandas
 numpy
 earthengine-api
 geemap
+scikit-learn
+xgboost
+joblib
+shap
+matplotlib

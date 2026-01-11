@@ -10,6 +10,10 @@ from services.fire import fetch_fire_last_7
 from services.features import update_history
 from services.model import predict_fire
 
+def fmt_pct(x, decimals=1):
+    return round(float(x) * 100, decimals)
+
+
 st.set_page_config(page_title="California Wildfire Forecast", layout="wide")
 st.title("California Wildfire 3-Day Forecast")
 
@@ -111,9 +115,10 @@ for idx, (city, (LAT, LON)) in enumerate(CITIES.items()):
             df_temp = update_history(row, city=city)
             latest = df_temp.iloc[-1]
 
-            # Predict wildfire probability
-            prob = predict_fire(latest.to_dict())
+            prob = float(predict_fire(latest.to_dict()))
             confidence = abs(prob - 0.5) * 2
+            confidence = max(0.0, min(1.0, confidence))
+
 
 
             predictions.append({
@@ -123,10 +128,11 @@ for idx, (city, (LAT, LON)) in enumerate(CITIES.items()):
             })
 
         forecast_df = pd.DataFrame(predictions)
-        forecast_df["PROB_PERCENT"] = (forecast_df["PROB"] * 100).round(1)
-        forecast_df["CONF_PERCENT"] = (forecast_df["CONFIDENCE"] * 100).round(0)
+        forecast_df["PROB_PERCENT"] = forecast_df["PROB"].apply(lambda x: fmt_pct(x, 1))
+        forecast_df["CONF_PERCENT"] = forecast_df["CONFIDENCE"].apply(lambda x: fmt_pct(x, 0))
 
-        # -------------------------
+
+        # ------------------------- 
         # Display colored cards for probability/confidence
         # -------------------------
         for idx2, row in forecast_df.iterrows():
