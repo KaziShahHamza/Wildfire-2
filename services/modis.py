@@ -31,3 +31,5 @@ def fetch_modis(lat, lon):
         "EVI": evi * 0.0001 if evi else None,
         "LST_C": (lst * 0.02 - 273.15) if lst else None
     }
+
+

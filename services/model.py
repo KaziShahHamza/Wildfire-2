@@ -1,4 +1,4 @@
-""" services/model.py """
+"""wildfile.services.model"""
 
 import joblib
 import pandas as pd

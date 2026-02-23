@@ -1,3 +1,4 @@
+"""wildfile.services.weather"""
 import requests
 from datetime import datetime, timedelta
 
