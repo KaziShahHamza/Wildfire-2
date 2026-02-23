@@ -187,22 +187,139 @@ for idx, (city, (LAT, LON)) in enumerate(CITIES.items()):
         # -------------------------
         # Raw Features (always expanded)
         # -------------------------
-        st.subheader(f"{city} Latest Environmental  Features")
+        st.subheader(f"{city} Latest Environmental Features")
 
         # Convert the dict to a dataframe for a clean tabular display
         latest_df = pd.DataFrame(list(latest.to_dict().items()), columns=["Feature", "Value"])
         latest_df["Value"] = latest_df["Value"].apply(lambda x: round(x, 2) if isinstance(x, (int, float)) else x)
-        st.table(latest_df)
+        # st.table(latest_df)
 
+        # -------------------------
+        # Latest Environmental Features (Minimal Academic Style)
+        # -------------------------
+        st.subheader(f"{city} Latest Environmental Features")
+
+        latest_df = pd.DataFrame(
+            list(latest.to_dict().items()),
+            columns=["Feature", "Value"]
+        )
+
+        # Round numeric values
+        latest_df["Value"] = latest_df["Value"].apply(
+            lambda x: round(x, 3) if isinstance(x, (int, float)) else x
+        )
+
+        # Sort alphabetically for academic clarity
+        latest_df = latest_df.sort_values("Feature")
+
+        styled_latest = (
+            latest_df.style
+            .hide(axis="index")
+            .set_properties(**{
+                "font-size": "25px",
+                "text-align": "center",
+                "padding": "6px"
+            })
+            .set_table_styles([
+                {
+                    "selector": "th",
+                    "props": [
+                        ("font-size", "18px"),
+                        ("font-weight", "800"),
+                        ("text-align", "left"),
+                        ("background-color", "#f4f6f8"),
+                        ("border-bottom", "1px solid #d9d9d9"),
+                        ("padding", "8px")
+                    ]
+                },
+                {
+                    "selector": "td",
+                    "props": [
+                        ("border-bottom", "1px solid #eeeeee")
+                    ]
+                },
+                {
+                    "selector": "table",
+                    "props": [
+                        ("border-collapse", "collapse"),
+                        ("width", "100%")
+                    ]
+                }
+            ])
+        )
+
+        st.table(styled_latest)
 
 
         # -------------------------
-        # Historical CSV Table (always expanded)
+        # Historical Rolling Features (Minimal Academic View)
         # -------------------------
-        st.subheader(f"{city} Historical Data (Rolling Features)")
+        st.subheader(f"{city} Historical Rolling Features")
+
         csv_file = f"data_store/history_{city.replace(' ', '_')}.csv"
+
         if os.path.exists(csv_file):
             df_hist = pd.read_csv(csv_file)
-            st.dataframe(df_hist)
+
+            # Select only relevant rolling features for clarity
+            selected_columns = [
+                "DATE",
+                "PRECIPITATION",
+                "MAX_TEMP",
+                "MIN_TEMP",
+                "AVG_WIND_SPEED",
+                "TEMP_RANGE",
+                "dryness",
+                "roll_precip_7",
+                "roll_wind_7",
+                "roll_temp_range_7"
+            ]
+
+            # Keep only existing columns
+            selected_columns = [col for col in selected_columns if col in df_hist.columns]
+
+            df_hist = df_hist[selected_columns]
+
+            # Round numeric values
+            for col in df_hist.select_dtypes(include=["float", "int"]).columns:
+                df_hist[col] = df_hist[col].round(3)
+
+            styled_hist = (
+                df_hist.style
+                .hide(axis="index")
+                .set_properties(**{
+                    "font-size": "14px",
+                    "text-align": "left",
+                    "padding": "6px"
+                })
+                .set_table_styles([
+                    {
+                        "selector": "th",
+                        "props": [
+                            ("font-size", "15px"),
+                            ("font-weight", "600"),
+                            ("text-align", "left"),
+                            ("background-color", "#f4f6f8"),
+                            ("border-bottom", "1px solid #d9d9d9"),
+                            ("padding", "8px")
+                        ]
+                    },
+                    {
+                        "selector": "td",
+                        "props": [
+                            ("border-bottom", "1px solid #f0f0f0")
+                        ]
+                    },
+                    {
+                        "selector": "table",
+                        "props": [
+                            ("border-collapse", "collapse"),
+                            ("width", "100%")
+                        ]
+                    }
+                ])
+            )
+
+            st.table(styled_hist)
         else:
-            st.info("No history data available yet for this city.")
+            st.info("No historical data available yet for this city.")
