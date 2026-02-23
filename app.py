@@ -187,12 +187,13 @@ for idx, (city, (LAT, LON)) in enumerate(CITIES.items()):
         # -------------------------
         # Raw Features (always expanded)
         # -------------------------
-        st.subheader(f"{city} Latest Environmental Features")
+        st.subheader(f"{city} Latest Environmental  Features")
 
         # Convert the dict to a dataframe for a clean tabular display
         latest_df = pd.DataFrame(list(latest.to_dict().items()), columns=["Feature", "Value"])
         latest_df["Value"] = latest_df["Value"].apply(lambda x: round(x, 2) if isinstance(x, (int, float)) else x)
         st.table(latest_df)
+
 
 
         # -------------------------
